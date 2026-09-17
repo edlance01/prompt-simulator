@@ -1,0 +1,17 @@
+# Render Blueprint for prompt-simulator.
+# Deploy: connect this repo in Render as a "Blueprint" (New + > Blueprint),
+# or point a single Web Service at this file. Render reads this to create
+# and configure the service automatically.
+services:
+  - type: web
+    name: prompt-simulator
+    runtime: python
+    plan: pro
+    branch: main
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn main:app --host 0.0.0.0 --port $PORT
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.13.0
+      - key: GROQ_API_KEY
+        sync: false  # set manually in the Render dashboard; never stored in this file or git
