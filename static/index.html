@@ -7,7 +7,7 @@
     <script src="https://cdn.tailwindcss.com"></script>
 </head>
 <body class="bg-slate-900 text-slate-100 min-h-screen">
-    
+
     <!-- Header -->
     <header class="border-b border-slate-800 bg-slate-950 p-4 shadow-md">
         <div class="max-w-6xl mx-auto flex flex-col sm:flex-row justify-between items-center gap-3">
@@ -15,10 +15,10 @@
                 <span class="text-2xl">🎯</span>
                 <h1 class="text-xl font-bold tracking-wide text-indigo-400">PromptCraft Enterprise</h1>
             </div>
-            
+
             <!-- Optional User Key Input -->
             <div class="flex items-center space-x-2">
-                <input id="userApiKeyInput" type="password" placeholder="Optional: Use your own Groq Key..." 
+                <input id="userApiKeyInput" type="password" placeholder="Optional: Use your own Groq Key..."
                        class="bg-slate-900 border border-slate-700 rounded px-3 py-1.5 text-xs text-slate-200 focus:outline-none focus:border-indigo-500 w-64 shadow-inner">
                 <span class="text-xs bg-indigo-500/10 text-indigo-400 border border-indigo-500/20 px-2 py-1 rounded font-mono">
                     Dual Key Mode
@@ -29,11 +29,17 @@
 
     <!-- App Body -->
     <main class="max-w-6xl mx-auto p-6 grid grid-cols-1 md:grid-cols-2 gap-6">
-        
+
         <!-- Left Column: Input Form -->
         <section class="bg-slate-800/50 border border-slate-700/60 rounded-xl p-5 shadow-lg">
-            <h2 class="text-lg font-semibold text-indigo-300 mb-3">1. Select Workplace Challenge</h2>
-            
+            <div class="flex items-center justify-between gap-2 mb-3">
+                <h2 class="text-lg font-semibold text-indigo-300">1. Select Workplace Challenge</h2>
+                <button type="button" id="newChallengeBtn" onclick="openChallengeModal()"
+                        class="text-xs bg-indigo-600/20 hover:bg-indigo-600/30 border border-indigo-500/40 text-indigo-300 px-2.5 py-1 rounded-md transition-colors whitespace-nowrap">
+                    + New Challenge
+                </button>
+            </div>
+
             <select id="scenarioSelect" class="w-full bg-slate-900 border border-slate-700 rounded-lg p-2.5 mb-4 text-sm focus:outline-none focus:border-indigo-500 text-slate-200">
                 <!-- Loaded dynamically -->
             </select>
@@ -42,9 +48,33 @@
                 <!-- Loaded dynamically -->
             </div>
 
-            <h2 class="text-lg font-semibold text-indigo-300 mb-2">2. Draft Your Prompt</h2>
-            <textarea id="promptInput" rows="7" placeholder="Act as a Senior HR Director..." 
+            <div class="flex items-center justify-between gap-2 mb-2">
+                <h2 class="text-lg font-semibold text-indigo-300">2. Draft Your Prompt</h2>
+                <div class="flex items-center gap-2">
+                    <button type="button" id="createToggleBtn" onclick="toggleCreateMode()"
+                            title="Build your prompt one C.R.E.A.T.E. element at a time"
+                            class="text-xs border px-2.5 py-1 rounded-md transition-colors whitespace-nowrap bg-slate-700/60 hover:bg-slate-700 border-slate-600 text-slate-200">
+                        C.R.E.A.T.E.
+                    </button>
+                    <button type="button" id="downloadBtn" onclick="downloadPrompt()"
+                            title="Save the current prompt as a Markdown file"
+                            class="text-xs bg-slate-700/60 hover:bg-slate-700 border border-slate-600 text-slate-200 px-2.5 py-1 rounded-md transition-colors whitespace-nowrap">
+                        ⬇ Download
+                    </button>
+                </div>
+            </div>
+
+            <!-- Normal prompt entry -->
+            <textarea id="promptInput" rows="7" maxlength="6000" placeholder="Act as a Senior HR Director..."
                       class="w-full bg-slate-900 border border-slate-700 rounded-lg p-3 text-sm focus:outline-none focus:border-indigo-500 mb-4 text-slate-200 font-mono"></textarea>
+
+            <!-- C.R.E.A.T.E. guided entry (hidden until toggled on) -->
+            <div id="createPanel" class="hidden mb-4">
+                <p class="text-xs text-slate-400 mb-3">
+                    Fill in each part of the framework. Blank parts are skipped when your prompt is assembled.
+                </p>
+                <div id="createFields" class="space-y-3"></div>
+            </div>
 
             <button onclick="submitPrompt()" id="submitBtn" class="w-full bg-indigo-600 hover:bg-indigo-500 text-white font-medium py-2.5 rounded-lg transition-colors shadow-lg">
                 Run Simulation
@@ -56,7 +86,7 @@
             <div>
                 <h2 class="text-lg font-semibold text-indigo-300 mb-4">3. Evaluation Feedback</h2>
                 <div id="resultsArea" class="hidden space-y-4">
-                    
+
                     <div class="flex justify-between items-center bg-slate-900 p-4 rounded-lg border border-slate-800">
                         <span class="text-sm font-medium text-slate-400">Overall Score</span>
                         <span id="scoreBadge" class="text-3xl font-bold text-emerald-400">0/100</span>
@@ -68,12 +98,19 @@
                     </div>
 
                     <div class="bg-slate-900 p-4 rounded-lg border border-slate-800">
-                        <h3 class="text-xs font-semibold text-indigo-400 uppercase tracking-wider mb-2">CREATE Analysis</h3>
-                        <div id="elementsContainer" class="text-xs space-y-2"></div>
+                        <h3 class="text-xs font-semibold text-indigo-400 uppercase tracking-wider mb-2">CREATE Score Breakdown</h3>
+                        <div id="elementsContainer" class="text-xs space-y-3"></div>
                     </div>
 
                     <div class="bg-slate-900 p-4 rounded-lg border border-slate-800">
-                        <h3 class="text-xs font-semibold text-indigo-400 uppercase tracking-wider mb-2">Simulated AI Output</h3>
+                        <div class="flex items-center justify-between mb-2">
+                            <h3 class="text-xs font-semibold text-indigo-400 uppercase tracking-wider">Simulated AI Output</h3>
+                            <button type="button" id="popOutBtn" onclick="popOutOutput()"
+                                    title="Open the output in its own window"
+                                    class="text-xs bg-slate-700/60 hover:bg-slate-700 border border-slate-600 text-slate-200 px-2 py-0.5 rounded-md transition-colors whitespace-nowrap">
+                                ⤢ Pop out
+                            </button>
+                        </div>
                         <pre id="outputSandbox" class="bg-slate-950 p-3 rounded text-xs text-slate-300 whitespace-pre-wrap font-mono overflow-x-auto border border-slate-800/80 max-h-48 overflow-y-auto"></pre>
                     </div>
 
@@ -86,44 +123,306 @@
         </section>
     </main>
 
+    <!-- New Challenge Modal -->
+    <div id="challengeModal" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4"
+         role="dialog" aria-modal="true" aria-labelledby="challengeModalTitle">
+        <form id="challengeForm" class="bg-slate-800 border border-slate-700 rounded-xl shadow-2xl w-full max-w-lg p-5 max-h-full overflow-y-auto">
+            <h2 id="challengeModalTitle" class="text-lg font-semibold text-indigo-300 mb-4">New Workplace Challenge</h2>
+
+            <label class="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1" for="chTitle">Title <span class="text-rose-400">*</span></label>
+            <input id="chTitle" type="text" maxlength="80" required placeholder="e.g. Customer Complaint Reply"
+                   class="w-full bg-slate-900 border border-slate-700 rounded-lg p-2.5 mb-3 text-sm focus:outline-none focus:border-indigo-500 text-slate-200">
+
+            <div class="grid grid-cols-2 gap-3 mb-3">
+                <div>
+                    <label class="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1" for="chRole">Your Role</label>
+                    <input id="chRole" type="text" maxlength="60" placeholder="e.g. Support Manager"
+                           class="w-full bg-slate-900 border border-slate-700 rounded-lg p-2.5 text-sm focus:outline-none focus:border-indigo-500 text-slate-200">
+                </div>
+                <div>
+                    <label class="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1" for="chDifficulty">Difficulty</label>
+                    <select id="chDifficulty" class="w-full bg-slate-900 border border-slate-700 rounded-lg p-2.5 text-sm focus:outline-none focus:border-indigo-500 text-slate-200">
+                        <option>Beginner</option>
+                        <option selected>Intermediate</option>
+                        <option>Advanced</option>
+                    </select>
+                </div>
+            </div>
+
+            <label class="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1" for="chTask">Task <span class="text-rose-400">*</span></label>
+            <textarea id="chTask" rows="3" maxlength="1000" required placeholder="What does the person need the AI to help with?"
+                      class="w-full bg-slate-900 border border-slate-700 rounded-lg p-2.5 mb-3 text-sm focus:outline-none focus:border-indigo-500 text-slate-200"></textarea>
+
+            <label class="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1" for="chHint">Hint (optional)</label>
+            <input id="chHint" type="text" maxlength="300" placeholder="A nudge about which CREATE elements matter most here"
+                   class="w-full bg-slate-900 border border-slate-700 rounded-lg p-2.5 mb-4 text-sm focus:outline-none focus:border-indigo-500 text-slate-200">
+
+            <p class="text-xs text-slate-500 mb-4">Custom challenges are saved in this browser only.</p>
+
+            <div class="flex justify-end gap-2">
+                <button type="button" onclick="closeChallengeModal()"
+                        class="text-sm bg-slate-700/60 hover:bg-slate-700 border border-slate-600 text-slate-200 px-4 py-2 rounded-lg transition-colors">Cancel</button>
+                <button type="submit"
+                        class="text-sm bg-indigo-600 hover:bg-indigo-500 text-white font-medium px-4 py-2 rounded-lg transition-colors">Add Challenge</button>
+            </div>
+        </form>
+    </div>
+
     <!-- App Logic -->
     <script>
-        let scenarios = [];
+        // ---------------------------------------------------------------
+        // State
+        // ---------------------------------------------------------------
+        const CUSTOM_STORAGE_KEY = 'promptcraft.customChallenges';
+        let builtInScenarios = [];
+        let customScenarios = [];
+        let createMode = false;
+        let lastOutput = { title: '', text: '' };
+        let outputWin = null;
 
-        async function init() {
+        // The six parts of Microsoft's CREATE framework, in order.
+        const CREATE_FIELDS = [
+            { key: 'character',   letter: 'C', name: 'Character',      desc: 'Who should the AI be? Assign a role or persona.',
+              placeholder: 'Act as a senior HR director with 15 years of experience in change management.' },
+            { key: 'request',     letter: 'R', name: 'Request',        desc: 'What exactly should it do? State the main task clearly.',
+              placeholder: 'Write a company-wide email announcing our new hybrid work policy.' },
+            { key: 'examples',    letter: 'E', name: 'Examples',       desc: 'Show what good looks like with a sample input or output.',
+              placeholder: 'Start like this: "Team, we heard your feedback about flexibility..."' },
+            { key: 'adjustments', letter: 'A', name: 'Adjustments',    desc: 'Tune the tone, style, reading level, or audience.',
+              placeholder: 'Warm and supportive, plain language, suitable for all staff.' },
+            { key: 'type',        letter: 'T', name: 'Type of Output', desc: 'What format do you want back? Bullets, table, email, etc.',
+              placeholder: 'An email with a subject line, a 2-sentence intro, and 3 bullet points.' },
+            { key: 'extras',      letter: 'E', name: 'Extras',         desc: 'Add constraints: word limits, things to avoid, must-includes.',
+              placeholder: 'Under 200 words. Do not mention layoffs. Include the effective date.' },
+        ];
+
+        // ---------------------------------------------------------------
+        // Helpers
+        // ---------------------------------------------------------------
+        function esc(value) {
+            return String(value ?? '').replace(/[&<>"']/g, c => (
+                { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]
+            ));
+        }
+
+        function allScenarios() {
+            return [...builtInScenarios, ...customScenarios];
+        }
+
+        function currentScenario() {
+            const id = document.getElementById('scenarioSelect').value;
+            return allScenarios().find(s => s.id === id) || null;
+        }
+
+        // ---------------------------------------------------------------
+        // Scenarios (built-in + custom)
+        // ---------------------------------------------------------------
+        function loadCustomScenarios() {
             try {
-                const res = await fetch('/api/scenarios');
-                scenarios = await res.json();
-                
-                const select = document.getElementById('scenarioSelect');
-                select.innerHTML = scenarios.map(s => `<option value="${s.id}">${s.title} (${s.difficulty})</option>`).join('');
-                
-                select.addEventListener('change', updateScenarioDisplay);
-                updateScenarioDisplay();
+                const parsed = JSON.parse(localStorage.getItem(CUSTOM_STORAGE_KEY) || '[]');
+                if (!Array.isArray(parsed)) return [];
+                return parsed
+                    .filter(s => s && typeof s.id === 'string' && typeof s.title === 'string' && typeof s.task === 'string')
+                    .map(s => ({
+                        id: s.id,
+                        title: s.title,
+                        role: typeof s.role === 'string' ? s.role : '',
+                        task: s.task,
+                        difficulty: typeof s.difficulty === 'string' ? s.difficulty : 'Custom',
+                        hint: typeof s.hint === 'string' ? s.hint : '',
+                        custom: true,
+                    }));
             } catch (err) {
-                console.error("Failed to load scenarios:", err);
+                return [];
             }
+        }
+
+        function saveCustomScenarios() {
+            try {
+                localStorage.setItem(CUSTOM_STORAGE_KEY, JSON.stringify(customScenarios));
+            } catch (err) {
+                alert('Your browser would not save this challenge, so it will be gone when you leave the page.');
+            }
+        }
+
+        function renderScenarioSelect(selectedId) {
+            const select = document.getElementById('scenarioSelect');
+            const option = s => `<option value="${esc(s.id)}">${esc(s.title)} (${esc(s.difficulty)})</option>`;
+
+            let html = builtInScenarios.map(option).join('');
+            if (customScenarios.length) {
+                html = `<optgroup label="Built-in">${html}</optgroup>` +
+                       `<optgroup label="My Challenges">${customScenarios.map(option).join('')}</optgroup>`;
+            }
+            select.innerHTML = html;
+
+            if (selectedId && allScenarios().some(s => s.id === selectedId)) {
+                select.value = selectedId;
+            }
+            updateScenarioDisplay();
         }
 
         function updateScenarioDisplay() {
-            const selectedId = document.getElementById('scenarioSelect').value;
-            const scenario = scenarios.find(s => s.id === selectedId);
-            
-            if (scenario) {
-                document.getElementById('scenarioDetails').innerHTML = `
-                    <div class="text-xs text-indigo-400 font-semibold uppercase tracking-wider mb-1">Role: ${scenario.role}</div>
-                    <div class="text-sm font-medium text-slate-200 mb-2">${scenario.task}</div>
-                    <div class="text-xs text-slate-400">💡 <strong>Hint:</strong> ${scenario.hint}</div>
-                `;
-            }
+            const scenario = currentScenario();
+            const box = document.getElementById('scenarioDetails');
+            if (!scenario) { box.innerHTML = ''; return; }
+
+            const roleLine = scenario.role
+                ? `<div class="text-xs text-indigo-400 font-semibold uppercase tracking-wider mb-1">Role: ${esc(scenario.role)}</div>`
+                : '';
+            const hintLine = scenario.hint
+                ? `<div class="text-xs text-slate-400">💡 <strong>Hint:</strong> ${esc(scenario.hint)}</div>`
+                : '';
+            const removeLine = scenario.custom
+                ? `<button type="button" onclick="deleteCurrentChallenge()" class="mt-3 text-xs text-rose-400 hover:text-rose-300 underline">Remove this custom challenge</button>`
+                : '';
+
+            box.innerHTML = `
+                ${roleLine}
+                <div class="text-sm font-medium text-slate-200 mb-2">${esc(scenario.task)}</div>
+                ${hintLine}
+                ${removeLine}
+            `;
         }
 
+        function openChallengeModal() {
+            document.getElementById('challengeForm').reset();
+            document.getElementById('challengeModal').classList.remove('hidden');
+            document.getElementById('chTitle').focus();
+        }
+
+        function closeChallengeModal() {
+            document.getElementById('challengeModal').classList.add('hidden');
+        }
+
+        function handleChallengeSubmit(event) {
+            event.preventDefault();
+            const title = document.getElementById('chTitle').value.trim();
+            const task = document.getElementById('chTask').value.trim();
+            if (!title || !task) return;
+
+            const scenario = {
+                id: 'custom_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6),
+                title,
+                role: document.getElementById('chRole').value.trim(),
+                task,
+                difficulty: document.getElementById('chDifficulty').value,
+                hint: document.getElementById('chHint').value.trim(),
+                custom: true,
+            };
+
+            customScenarios.push(scenario);
+            saveCustomScenarios();
+            renderScenarioSelect(scenario.id);
+            closeChallengeModal();
+        }
+
+        function deleteCurrentChallenge() {
+            const scenario = currentScenario();
+            if (!scenario || !scenario.custom) return;
+            if (!confirm(`Remove the custom challenge "${scenario.title}"?`)) return;
+
+            customScenarios = customScenarios.filter(s => s.id !== scenario.id);
+            saveCustomScenarios();
+            renderScenarioSelect();
+        }
+
+        // ---------------------------------------------------------------
+        // Prompt entry: normal vs C.R.E.A.T.E. mode
+        // ---------------------------------------------------------------
+        function renderCreateFields() {
+            document.getElementById('createFields').innerHTML = CREATE_FIELDS.map(f => `
+                <div class="bg-slate-900/80 border border-slate-800 rounded-lg p-3">
+                    <label for="create-${f.key}" class="flex items-start gap-3 mb-2 cursor-pointer">
+                        <span class="flex-none w-7 h-7 rounded-md bg-indigo-500/20 border border-indigo-500/40 text-indigo-300 font-bold flex items-center justify-center text-sm">${f.letter}</span>
+                        <span>
+                            <span class="block text-sm font-semibold text-slate-200">${esc(f.name)}</span>
+                            <span class="block text-xs text-slate-400">${esc(f.desc)}</span>
+                        </span>
+                    </label>
+                    <textarea id="create-${f.key}" rows="2" maxlength="900" placeholder="${esc(f.placeholder)}"
+                              class="w-full bg-slate-900 border border-slate-700 rounded-lg p-2.5 text-sm focus:outline-none focus:border-indigo-500 text-slate-200 font-mono"></textarea>
+                </div>
+            `).join('');
+        }
+
+        function assembleCreatePrompt() {
+            return CREATE_FIELDS
+                .map(f => {
+                    const value = document.getElementById(`create-${f.key}`).value.trim();
+                    return value ? `${f.name}: ${value}` : null;
+                })
+                .filter(Boolean)
+                .join('\n\n');
+        }
+
+        function getCurrentPrompt() {
+            return createMode ? assembleCreatePrompt() : document.getElementById('promptInput').value;
+        }
+
+        function toggleCreateMode() {
+            createMode = !createMode;
+
+            if (!createMode) {
+                // Leaving CREATE mode: carry the assembled prompt back into the
+                // normal text box so nothing typed in the fields is lost.
+                const assembled = assembleCreatePrompt();
+                if (assembled) document.getElementById('promptInput').value = assembled;
+            }
+
+            const btn = document.getElementById('createToggleBtn');
+            document.getElementById('promptInput').classList.toggle('hidden', createMode);
+            document.getElementById('createPanel').classList.toggle('hidden', !createMode);
+            btn.textContent = createMode ? '← Normal prompt entry' : 'C.R.E.A.T.E.';
+            btn.title = createMode
+                ? 'Switch back to a single free-form prompt box'
+                : 'Build your prompt one C.R.E.A.T.E. element at a time';
+            btn.classList.toggle('bg-indigo-600/30', createMode);
+            btn.classList.toggle('border-indigo-500', createMode);
+            btn.classList.toggle('text-indigo-200', createMode);
+            btn.classList.toggle('bg-slate-700/60', !createMode);
+            btn.classList.toggle('border-slate-600', !createMode);
+            btn.classList.toggle('text-slate-200', !createMode);
+        }
+
+        // ---------------------------------------------------------------
+        // Download the current prompt as Markdown
+        // ---------------------------------------------------------------
+        function downloadPrompt() {
+            const prompt = getCurrentPrompt().trim();
+            if (!prompt) return alert('Write or build a prompt first, then download it.');
+
+            const scenario = currentScenario();
+            const now = new Date();
+            const stamp = now.toISOString().slice(0, 10);
+            const title = scenario ? scenario.title : 'Untitled';
+
+            const lines = [`# Prompt: ${title}`, ''];
+            if (scenario) lines.push(`**Challenge:** ${scenario.task}`, '');
+            lines.push(`**Saved:** ${stamp}`, '', '## Prompt', '', prompt, '');
+
+            const slug = title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 50) || 'prompt';
+            const blob = new Blob([lines.join('\n')], { type: 'text/markdown;charset=utf-8' });
+            const url = URL.createObjectURL(blob);
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = `prompt-${slug}-${stamp}.md`;
+            document.body.appendChild(link);
+            link.click();
+            link.remove();
+            setTimeout(() => URL.revokeObjectURL(url), 1000);
+        }
+
+        // ---------------------------------------------------------------
+        // Run the simulation
+        // ---------------------------------------------------------------
         async function submitPrompt() {
-            const scenarioId = document.getElementById('scenarioSelect').value;
-            const playerPrompt = document.getElementById('promptInput').value;
+            const scenario = currentScenario();
+            const playerPrompt = getCurrentPrompt();
             const customApiKey = document.getElementById('userApiKeyInput').value;
             const btn = document.getElementById('submitBtn');
 
+            if (!scenario) return alert('Please select a workplace challenge first.');
             if (!playerPrompt.trim()) return alert('Please write a prompt before running the simulation.');
 
             btn.disabled = true;
@@ -133,10 +432,12 @@
             try {
                 // Construct request payload; includes custom API key if provided
                 const payload = {
-                    scenario_id: scenarioId,
+                    scenario_id: scenario.id,
                     player_prompt: playerPrompt,
                     api_key: customApiKey.trim() || null
                 };
+                // Custom challenges live in the browser, so send their task text along.
+                if (scenario.custom) payload.custom_task = scenario.task;
 
                 const res = await fetch('/api/evaluate', {
                     method: 'POST',
@@ -145,12 +446,19 @@
                 });
 
                 if (!res.ok) {
-                    const err = await res.json();
-                    throw new Error(err.detail || 'Evaluation failed');
+                    let detail = '';
+                    try { detail = (await res.json()).detail; } catch (e) { /* non-JSON error body */ }
+                    // FastAPI returns a list for validation errors (e.g. text too long).
+                    if (Array.isArray(detail) || !detail) {
+                        detail = res.status === 422
+                            ? 'Your prompt or challenge is too long or invalid. Please shorten it and try again.'
+                            : 'Evaluation failed';
+                    }
+                    throw new Error(detail);
                 }
 
                 const data = await res.json();
-                renderResults(data);
+                renderResults(data, scenario);
 
             } catch (err) {
                 alert(`Error: ${err.message}`);
@@ -161,21 +469,163 @@
             }
         }
 
-        function renderResults(data) {
+        function scoreColor(ratio) {
+            if (ratio >= 0.75) return { text: 'text-emerald-400', bar: 'bg-emerald-500' };
+            if (ratio >= 0.5)  return { text: 'text-amber-400',   bar: 'bg-amber-500' };
+            return { text: 'text-rose-400', bar: 'bg-rose-500' };
+        }
+
+        function renderResults(data, scenario) {
             document.getElementById('placeholderArea').classList.add('hidden');
             document.getElementById('resultsArea').classList.remove('hidden');
 
-            document.getElementById('scoreBadge').innerText = `${data.score}/100`;
+            const badge = document.getElementById('scoreBadge');
+            badge.innerText = `${data.score}/100`;
+            badge.className = `text-3xl font-bold ${scoreColor(data.score / 100).text}`;
+
             document.getElementById('feedbackText').innerText = data.feedback;
             document.getElementById('outputSandbox').innerText = data.simulated_output;
 
-            const detected = (data.detected_elements || []).map(e => `<span class="inline-block bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 px-2 py-0.5 rounded mr-1 mb-1">✅ ${e}</span>`).join('');
-            const missing = (data.missing_elements || []).map(e => `<span class="inline-block bg-rose-500/10 border border-rose-500/20 text-rose-400 px-2 py-0.5 rounded mr-1 mb-1">❌ ${e}</span>`).join('');
+            document.getElementById('elementsContainer').innerHTML = (data.breakdown || []).map(item => {
+                const ratio = item.max ? item.score / item.max : 0;
+                const color = scoreColor(ratio);
+                return `
+                    <div>
+                        <div class="flex justify-between items-baseline mb-1">
+                            <span class="font-semibold text-slate-200">${esc(item.label)}</span>
+                            <span class="font-mono ${color.text}">${esc(item.score)} / ${esc(item.max)}</span>
+                        </div>
+                        <div class="h-1.5 bg-slate-800 rounded-full overflow-hidden">
+                            <div class="h-full ${color.bar} rounded-full" style="width: ${Math.round(ratio * 100)}%"></div>
+                        </div>
+                        ${item.note ? `<p class="text-slate-400 mt-1">${esc(item.note)}</p>` : ''}
+                    </div>
+                `;
+            }).join('');
 
-            document.getElementById('elementsContainer').innerHTML = `
-                <div><strong>Detected:</strong> ${detected || '<span class="text-slate-500">None</span>'}</div>
-                <div class="mt-1"><strong>Missing:</strong> ${missing || '<span class="text-emerald-400">None! Perfect CREATE usage.</span>'}</div>
-            `;
+            lastOutput = {
+                title: scenario ? scenario.title : 'Simulated AI Output',
+                text: data.simulated_output || '',
+            };
+            // If the output window is already open, keep it in sync with the latest run.
+            if (outputWin && !outputWin.closed) populateOutputWindow();
+        }
+
+        // ---------------------------------------------------------------
+        // Pop the simulated output out into its own window
+        // ---------------------------------------------------------------
+        const POPOUT_SHELL = `<!DOCTYPE html>
+<html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Simulated AI Output</title>
+<style>
+  * { box-sizing: border-box; }
+  body { margin: 0; background: #0f172a; color: #e2e8f0; font-family: system-ui, -apple-system, "Segoe UI", sans-serif; }
+  header { position: sticky; top: 0; display: flex; align-items: center; justify-content: space-between; gap: 12px;
+           padding: 12px 20px; background: #020617; border-bottom: 1px solid #1e293b; }
+  h1 { margin: 0; font-size: 15px; font-weight: 600; color: #a5b4fc; }
+  .tools { display: flex; gap: 8px; }
+  button { background: #334155; color: #e2e8f0; border: 1px solid #475569; border-radius: 6px; padding: 5px 12px;
+           font-size: 13px; cursor: pointer; }
+  button:hover { background: #475569; }
+  pre { margin: 0; padding: 24px 28px; white-space: pre-wrap; word-wrap: break-word; line-height: 1.6;
+        font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 16px; color: #cbd5e1; }
+</style></head>
+<body>
+  <header>
+    <h1 id="popTitle">Simulated AI Output</h1>
+    <div class="tools">
+      <button id="popSmaller" title="Smaller text">A&minus;</button>
+      <button id="popLarger" title="Larger text">A+</button>
+      <button id="popCopy">Copy</button>
+    </div>
+  </header>
+  <pre id="popText"></pre>
+</body></html>`;
+
+        function populateOutputWindow() {
+            const doc = outputWin.document;
+            doc.title = `${lastOutput.title} - Simulated AI Output`;
+            doc.getElementById('popTitle').textContent = `${lastOutput.title} — Simulated AI Output`;
+            doc.getElementById('popText').textContent = lastOutput.text;
+        }
+
+        function popOutOutput() {
+            if (!lastOutput.text) return alert('Run a simulation first, then pop out the output.');
+
+            // Already open: refresh it and bring it to the front.
+            if (outputWin && !outputWin.closed) {
+                populateOutputWindow();
+                outputWin.focus();
+                return;
+            }
+
+            outputWin = window.open('', 'promptcraftOutput', 'width=900,height=700,resizable=yes,scrollbars=yes');
+            if (!outputWin) {
+                return alert('Your browser blocked the pop-up window. Allow pop-ups for this site, then try again.');
+            }
+
+            const win = outputWin;
+            win.document.open();
+            win.document.write(POPOUT_SHELL);
+            win.document.close();
+            populateOutputWindow();
+
+            const text = win.document.getElementById('popText');
+            let size = 16;
+            const setSize = delta => {
+                size = Math.max(10, Math.min(48, size + delta));
+                text.style.fontSize = size + 'px';
+            };
+            win.document.getElementById('popSmaller').addEventListener('click', () => setSize(-2));
+            win.document.getElementById('popLarger').addEventListener('click', () => setSize(2));
+
+            const copyBtn = win.document.getElementById('popCopy');
+            copyBtn.addEventListener('click', async () => {
+                let copied = false;
+                try {
+                    await win.navigator.clipboard.writeText(lastOutput.text);
+                    copied = true;
+                } catch (err) {
+                    // Fall back to selecting the text and using the legacy copy command.
+                    const range = win.document.createRange();
+                    range.selectNodeContents(text);
+                    const sel = win.getSelection();
+                    sel.removeAllRanges();
+                    sel.addRange(range);
+                    try { copied = win.document.execCommand('copy'); } catch (e) { /* ignore */ }
+                }
+                copyBtn.textContent = copied ? 'Copied!' : 'Press Ctrl/Cmd+C';
+                setTimeout(() => { copyBtn.textContent = 'Copy'; }, 1500);
+            });
+            win.focus();
+        }
+
+        // ---------------------------------------------------------------
+        // Startup
+        // ---------------------------------------------------------------
+        async function init() {
+            renderCreateFields();
+
+            document.getElementById('challengeForm').addEventListener('submit', handleChallengeSubmit);
+            document.getElementById('challengeModal').addEventListener('click', e => {
+                if (e.target.id === 'challengeModal') closeChallengeModal();  // click on the dimmed backdrop
+            });
+            document.addEventListener('keydown', e => {
+                if (e.key === 'Escape') closeChallengeModal();
+            });
+            document.getElementById('scenarioSelect').addEventListener('change', updateScenarioDisplay);
+            window.addEventListener('beforeunload', () => {
+                if (outputWin && !outputWin.closed) outputWin.close();
+            });
+
+            customScenarios = loadCustomScenarios();
+            try {
+                const res = await fetch('/api/scenarios');
+                builtInScenarios = await res.json();
+            } catch (err) {
+                console.error("Failed to load scenarios:", err);
+            }
+            renderScenarioSelect();
         }
 
         init();
